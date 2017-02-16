@@ -1,0 +1,7 @@
+[package]
+name = "mobiless"
+version = "0.1.0"
+authors = ["Xinkai Chen <xinkai.chen@qq.com>"]
+
+[dependencies]
+byteorder = "1"
