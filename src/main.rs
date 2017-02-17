@@ -2,13 +2,18 @@ extern crate byteorder;
 
 mod mobiless;
 
+#[cfg(not(target_os = "emscripten"))]
 use std::fs::File;
+
+#[cfg(not(target_os = "emscripten"))]
 use std::io::{Read, Write};
 
+#[cfg(not(target_os = "emscripten"))]
 fn help() {
     println!("Usage: mobiless source.mobi output.mobi");
 }
 
+#[cfg(not(target_os = "emscripten"))]
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
