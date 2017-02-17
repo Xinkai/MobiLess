@@ -29,9 +29,9 @@ fn main() {
             let mut file = mobiless::MobiFile::new(&mut data, length);
 
             println!("Removing sources...");
-            file.remove_sources();
+            let length = file.remove_sources();
             let mut output = File::create(args[2].to_owned()).unwrap();
-            output.write(&file.data[0..file.length]).unwrap();
+            output.write(&file.data[0..length]).unwrap();
         },
         _ => {
             help();

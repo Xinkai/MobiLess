@@ -120,7 +120,7 @@ impl<'a> MobiFile<'a> {
         self.write_long(0x4e + 8 * index as usize, offset as u32)
     }
 
-    pub fn remove_sources(&mut self) {
+    pub fn remove_sources(&mut self) -> usize {
         let source_sections = self.get_source_sections();
 
         // rewrite sections
@@ -142,6 +142,7 @@ impl<'a> MobiFile<'a> {
 
         self.clear_section_sources();
         self.length = self.length - delta;
+        self.length
     }
 }
 
