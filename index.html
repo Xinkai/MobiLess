@@ -249,25 +249,24 @@
 
         const box = document.getElementById("Box");
         box.addEventListener("dragenter", event => {
-            console.log("dragenter");
-            event.target.classList.add("over");
+            box.classList.add("over");
             event.dataTransfer.dropEffect = "copy";
             event.preventDefault();
             event.stopPropagation();
         });
         box.addEventListener("dragover", event => {
-            event.target.classList.add("over");
+            box.classList.add("over");
             event.dataTransfer.dropEffect = "copy";
             event.preventDefault();
             event.stopPropagation();
         });
 
         box.addEventListener("dragleave", event => {
-            event.target.classList.remove("over");
+            box.classList.remove("over");
         });
         box.addEventListener("drop", event => {
             document.querySelectorAll("#Output > div").forEach(one => one.style.display = "none");
-            event.target.classList.remove("over");
+            box.classList.remove("over");
             const file = event.dataTransfer.files[0];
             if (file) {
                 processFile(file);
