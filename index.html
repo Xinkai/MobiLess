@@ -1,1 +1,302 @@
-Test!
+<!doctype html>
+<html>
+<head>
+    <title>MobiLess</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <script src="./mobiless.js"></script>
+    <meta name="description" content="MobiLess is a tool that reduces the size of mobi-format ebook files." />
+    <meta name="keywords" content="kindle,mobi,ebook,emscripten,webapp,asm.js,asmjs,WebAssembly,rustlang" />
+    <meta name="robots" content="index,nofollow" />
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #eee;
+        }
+        #Wrapper {
+            background-color: #ddd;
+            margin: 0 auto;
+            padding: 10px 20px;
+            width: 600px;
+            height: 100%;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        h1, h3 {
+            margin-top: 10px;
+        }
+        footer {
+            position: fixed;
+            bottom: 0;
+            margin-left: -20px;
+            height: 30px;
+            background-color: lightgreen;
+            padding: 0 20px;
+            color: blue;
+            width: 560px;
+            line-height: 30px;
+        }
+        footer > a {
+            text-decoration: none;
+            color: blue;
+            margin-right: 20px;
+        }
+        footer > a:visited {
+            color: blue;
+        }
+        #Box {
+            border-radius: 5px;
+            height: 300px;
+            padding: 10px 20px;
+            border: 1px darkgray solid;
+            position: relative;
+        }
+        #Box.over {
+            border: 1px black dashed;
+            background-color: #f5f5f5;
+        }
+        button, #SaveLink {
+            color: white;
+            background-color: #5cb85c;
+            border: 1px lightgreen solid;
+            border-radius: 3px;
+            padding: 3px 12px;
+            font-size: 18px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        #SaveLink {
+            font-size: 40px;
+            padding: 10px 18px;
+        }
+        #Status {
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            left: 0;
+            top: 0;
+            background-color: #eee;
+            font-size: 48px;
+            line-height: 300px;
+            color: grey;
+            text-align: center;
+        }
+        #FileInput {
+            display: none;
+        }
+        #Output > div {
+            display: none;
+        }
+        #ErrorOccured {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="Wrapper">
+    <h1>MobiLess on Web</h1>
+    <hr />
+
+    <p>
+        MobiLess is a tool that reduces the size of mobi-format ebook files.
+        It works by removing the source files that were used during the creation.
+        Despite running in a browser, MobiLess does not upload your files to servers. Your files are completely safe!
+    </p>
+
+    <p>
+        MobiLess is written in <a href="https://www.rust-lang.org/">Rust</a>, then ported to browsers with <a href="https://kripken.github.io/emscripten-site/">emscripten</a>.
+    </p>
+
+    <div id="Box">
+        <h3>Drag your mobi file here, or <button id="SelectBtn">Select One</button></h3>
+        <input type="file" id="FileInput" /></label>
+
+        <div id="Status">Loading...</div>
+
+        <div id="Output">
+            <div id="Savable">
+                <p style="line-height: 25px">Success! The processed file size is <span id="NewSize"></span>,
+                the original size is <span id="OriginalSize"></span>, that's <span id="Percentage"></span>% reduction!</p>
+                <br />
+                <p style="text-align: center"><a id="SaveLink">Save It</a></p>
+            </div>
+            <div id="NoSources">
+                Congratulations! The file has no sources.
+            </div>
+            <div id="ErrorOccured">
+                There was an error! Check if the file is a valid mobi file!
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <a target="_blank" href="https://github.com/Xinkai/MobiLess">Source Code</a>
+        <a target="_blank" href="https://github.com/Xinkai/MobiLess/issues">Report Bug</a>
+    </footer>
+</div>
+<script>
+    "use strict";
+    const processMobiFile = Module.cwrap('process_mobi_file',
+        'number',
+        ['number', 'number'] // Rust type "&mut[u8]" equals to two C types "char* data, uint length"
+    );
+
+    const KiB = Math.pow(2, 10);
+    const MiB = Math.pow(2, 20);
+
+    function formatSize(value) {
+        if (value >= MiB) {
+            return `${(value / MiB).toFixed(2)}MiB`;
+        } else if (value >= KiB) {
+            return `${(value / KiB).toFixed(2)}KiB`;
+        } else {
+            return `${value}bytes`;
+        }
+    }
+
+    function generateDownloadLink(array, newLength) {
+        const newArray = array.slice(0, newLength);
+        const blob = new Blob([newArray.buffer], {
+            type: "application/x-mobipocket-ebook",
+        });
+        return URL.createObjectURL(blob);
+    }
+
+    function processArrayBuffer(ab, size) {
+        const heapPtr = Module._malloc(size);
+        console.log(`Allocated ${size} at 0x${heapPtr.toString(16)}`);
+
+        let link = "";
+        let newSize = -1;
+        try {
+            const heap = new Uint8Array(Module.HEAPU8.buffer, heapPtr, size);
+            heap.set(new Uint8Array(ab));
+            newSize = processMobiFile(heap.byteOffset, size);
+            if (size === newSize) {
+
+            } else {
+                link = generateDownloadLink(heap, newSize);
+            }
+        } catch (err) {
+            console.error("Rethrow");
+            throw err;
+        }
+        Module._free(heapPtr);
+        return [link, newSize];
+    }
+
+    function processFile(file) {
+        const status = document.getElementById("Status");
+        status.innerHTML = "Processing...";
+        status.style.display = "block";
+        const size = file.size;
+        const name = file.name;
+        const reader = new FileReader();
+        reader.onloadend = event => {
+            if (event.target.readyState === 2) {
+                let link, newSize;
+                try {
+                    [link, newSize] = processArrayBuffer(event.target.result, size);
+                } catch(err) {
+                    document.getElementById("ErrorOccured").style.display = "block";
+                    console.error(err);
+                    status.style.display = "none";
+                    return;
+                }
+                if (link) {
+                    document.getElementById("NewSize").innerHTML = formatSize(newSize);
+                    document.getElementById("OriginalSize").innerHTML = formatSize(size);
+                    document.getElementById("Percentage").innerHTML = ((size - newSize) / size * 100 + 0.5) | 0;
+
+                    const saveLink = document.getElementById("SaveLink");
+                    const href = saveLink.getAttribute("href");
+                    if (href) {
+                        URL.revokeObjectURL(href);
+                    }
+                    saveLink.setAttribute("href", link);
+                    saveLink.setAttribute("download", name);
+                    document.getElementById("Savable").style.display = "block";
+                } else {
+                    document.getElementById("NoSources").style.display = "block";
+                }
+                status.style.display = "none";
+            }
+        }
+        reader.readAsArrayBuffer(file);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const fileInput = document.getElementById("FileInput");
+        const status = document.getElementById("Status");
+
+        status.style.display = "none";
+
+        fileInput.addEventListener("change", event => {
+            document.querySelectorAll("#Output > div").forEach(one => one.style.display = "none");
+            const input = event.target;
+            const file = input.files[0];
+            if (file) {
+                processFile(file);
+            }
+        });
+
+        document.getElementById("SelectBtn").addEventListener("click", event => {
+            fileInput.click();
+        });
+
+        const box = document.getElementById("Box");
+        box.addEventListener("dragenter", event => {
+            console.log("dragenter");
+            event.target.classList.add("over");
+            event.dataTransfer.dropEffect = "copy";
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        box.addEventListener("dragover", event => {
+            event.target.classList.add("over");
+            event.dataTransfer.dropEffect = "copy";
+            event.preventDefault();
+            event.stopPropagation();
+        });
+
+        box.addEventListener("dragleave", event => {
+            event.target.classList.remove("over");
+        });
+        box.addEventListener("drop", event => {
+            document.querySelectorAll("#Output > div").forEach(one => one.style.display = "none");
+            event.target.classList.remove("over");
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                processFile(file);
+            }
+            event.preventDefault();
+            event.stopPropagation();
+        });
+
+        const stopIt = event => {
+            event.dataTransfer.effectAllowed = "none";
+            event.dataTransfer.dropEffect = "none";
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+        }
+        document.body.addEventListener("dragstart", stopIt);
+        document.body.addEventListener("dragover", stopIt);
+        document.body.addEventListener("dragend", stopIt);
+        document.body.addEventListener("drop", stopIt);
+    });
+</script>
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-9522990-7', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+</html>
