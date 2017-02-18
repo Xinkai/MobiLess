@@ -1,6 +1,6 @@
 extern crate byteorder;
 
-mod mobiless;
+mod lib;
 
 #[cfg(not(target_os = "emscripten"))]
 use std::fs::File;
@@ -26,7 +26,7 @@ fn main() {
             let length = src_file.read_to_end(&mut data).unwrap();
             println!("File loaded with length: {}", length);
 
-            let mut file = mobiless::MobiFile::new(&mut data, length);
+            let mut file = lib::MobiFile::new(&mut data, length);
 
             println!("Removing sources...");
             let length = file.remove_sources();

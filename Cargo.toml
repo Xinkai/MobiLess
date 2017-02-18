@@ -5,3 +5,9 @@ authors = ["Xinkai Chen <xinkai.chen@qq.com>"]
 
 [dependencies]
 byteorder = "1"
+
+[lib]
+crate-type = ["staticlib"]
+
+[[bin]]
+name = "mobiless"

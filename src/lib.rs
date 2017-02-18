@@ -1,3 +1,4 @@
+extern crate byteorder;
 use byteorder::{BigEndian, ByteOrder};
 use std::fmt::{Debug, Result, Formatter};
 
@@ -221,4 +222,16 @@ impl<'a> Section<'a> {
         let length = self.read_long(0x58) as usize;
         String::from_utf8(self.read_bytes(offset, length).to_vec()).unwrap()
     }
+}
+
+#[cfg(target_os = "emscripten")]
+#[no_mangle]
+pub fn process_mobi_file(data: &mut [u8]) -> usize {
+    println!("Data ptr {:?}", data.as_ptr());
+    let length = data.len();
+    let mut file = MobiFile::new(data, length);
+
+    println!("Removing sources...");
+    let length = file.remove_sources();
+    length
 }
